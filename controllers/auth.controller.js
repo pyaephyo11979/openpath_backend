@@ -78,12 +78,10 @@ const refresh = async (req, res) => {
         const newToken = jwt.sign({ id: decoded.id }, process.env.JWT_SECRET, {
           expiresIn: '1h',
         });
-        res
-          .status(200)
-          .json({
-            message: 'Token refreshed successfully',
-            data: { token: newToken },
-          });
+        res.status(200).json({
+          message: 'Token refreshed successfully',
+          data: { token: newToken },
+        });
       },
     );
   } catch (error) {
@@ -107,5 +105,5 @@ module.exports = {
   createUser,
   loginUser,
   refresh,
-  logoutUser
+  logoutUser,
 };
