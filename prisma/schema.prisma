@@ -5,69 +5,169 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model User {
-  id             String           @id @default(cuid())
-  name           String
-  email          String           @unique
-  password       String
-  LessonProgress LessonProgress[]
-  Enrollment     Enrollment[]
-  role           Int              @default(0)
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
+enum Role {
+  USER
+  ADMIN
 }
 
-model Course {
-  id          String       @id @default(cuid())
+enum Status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model Users {
+  id           Int              @id @default(autoincrement())
+  name         String
+  email        String           @unique
+  password     String
+  role         Role             @default(USER)
+  fcmToken     String?          @map("fcm_token")
+  createdAt    DateTime         @default(now()) @map("created_at")
+  updatedAt    DateTime         @updatedAt @map("updated_at")
+  enrollments  Enrollment[]
+  progress     LessonProgress[]
+  quizAttempts QuizAttempt[]
+
+  @@map("users")
+}
+
+model Courses {
+  id          Int          @id @default(autoincrement())
   title       String
-  description String
-  coverImage  String
-  Lessons     Lesson[]
-  isPublished Boolean      @default(false)
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
+  description String?
+  imageUrl    String?      @map("image_url")
+  price       Float        @default(0.0)
+  published   Boolean      @default(false)
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+  lessons     Lessons[]
   enrollments Enrollment[]
+  quizzes     Quizzes[]
+
+  @@map("courses")
 }
 
-model Lesson {
-  id             String           @id @default(cuid())
-  title          String
-  content        String
-  courseId       String
-  youtubeUrl     String
-  materialUrl    String?
-  sequenceOrder  Int
-  course         Course           @relation(fields: [courseId], references: [id])
-  createdAt      DateTime         @default(now())
-  updatedAt      DateTime         @updatedAt
-  lessonProgress LessonProgress[]
-}
+model Lessons {
+  id        Int              @id @default(autoincrement())
+  title     String
+  content   String?
+  videoId   String           @map("video_id")
+  courseId  Int              @map("course_id")
+  sequence  Int
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+  progress  LessonProgress[]
 
-model LessonProgress {
-  id             String    @id @default(cuid())
-  userId         String
-  lessonId       String
-  isCompleted    Boolean   @default(false)
-  user           User      @relation(fields: [userId], references: [id])
-  lesson         Lesson    @relation(fields: [lessonId], references: [id])
-  completionDate DateTime?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  course Courses @relation(fields: [courseId], references: [id])
+
+  @@map("lessons")
 }
 
 model Enrollment {
-  id        String   @id @default(cuid())
-  userId    String
-  courseId  String
-  user      User     @relation(fields: [userId], references: [id])
-  course    Course   @relation(fields: [courseId], references: [id])
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  courseId  Int      @map("course_id")
+  approved  Boolean  @default(false)
+  status    Status   @default(PENDING)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   Users   @relation(fields: [userId], references: [id])
+  course Courses @relation(fields: [courseId], references: [id])
+
+  @@unique([userId, courseId])
+  @@map("enrollments")
+}
+
+model LessonProgress {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  lessonId  Int      @map("lesson_id")
+  completed Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   Users   @relation(fields: [userId], references: [id])
+  lesson Lessons @relation(fields: [lessonId], references: [id])
+
+  @@unique([userId, lessonId])
+  @@map("lesson_progress")
+}
+
+model Quizzes {
+  id        Int      @id @default(autoincrement())
+  title     String
+  courseId  Int      @map("course_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  course    Courses       @relation(fields: [courseId], references: [id])
+  questions Questions[]
+  attempts  QuizAttempt[]
+
+  @@map("quizzes")
+}
+
+model Questions {
+  id        Int      @id @default(autoincrement())
+  question  String
+  quizId    Int      @map("quiz_id")
+  sequence  Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  quiz    Quizzes   @relation(fields: [quizId], references: [id])
+  answers Answers[]
+
+  @@map("questions")
+}
+
+model Answers {
+  id         Int      @id @default(autoincrement())
+  answer     String
+  correct    Boolean  @default(false)
+  questionId Int      @map("question_id")
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  question       Questions        @relation(fields: [questionId], references: [id])
+  userSelections UserQuizAnswer[]
+
+  @@map("answers")
+}
+
+model QuizAttempt {
+  id        Int      @id @default(autoincrement())
+  userId    Int      @map("user_id")
+  quizId    Int      @map("quiz_id")
+  score     Float
+  passed    Boolean  @default(false)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    Users            @relation(fields: [userId], references: [id])
+  quiz    Quizzes          @relation(fields: [quizId], references: [id])
+  answers UserQuizAnswer[]
+
+  @@map("quiz_attempts")
+}
+
+model UserQuizAnswer {
+  id        Int @id @default(autoincrement())
+  attemptId Int @map("attempt_id")
+  answerId  Int @map("answer_id")
+
+  attempt QuizAttempt @relation(fields: [attemptId], references: [id])
+  answer  Answers     @relation(fields: [answerId], references: [id])
+
+  @@unique([attemptId, answerId])
+  @@map("user_quiz_answers")
 }
