@@ -45,6 +45,7 @@
     "#schemas/*": "./src/schemas/*"
   },
   "devDependencies": {
+    "jest": "^30.4.2",
     "prettier": "^3.9.5"
   }
 }
